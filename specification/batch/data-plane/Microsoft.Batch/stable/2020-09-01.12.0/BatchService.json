@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
     "title": "BatchService",
-    "version": "2020-03-01.11.0",
+    "version": "2020-09-01.12.0",
     "description": "A client for issuing REST requests to the Azure Batch service.",
     "x-ms-code-generation-settings": {
       "name": "BatchServiceClient"
@@ -5951,7 +5951,7 @@
             },
             "description": "A response containing the Task counts for the specified Job.",
             "schema": {
-              "$ref": "#/definitions/TaskCounts"
+              "$ref": "#/definitions/TaskCountsResult"
             }
           },
           "default": {
@@ -11798,6 +11798,12 @@
           "$ref": "#/definitions/TaskConstraints",
           "title": "Constraints that apply to the Job Manager Task."
         },
+        "requiredSlots": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of scheduling slots that the Task required to run.",
+          "description": "The default is 1. A Task can only be scheduled to run on a compute node if the node has enough free scheduling slots available. For multi-instance Tasks, this must be 1."
+        },
         "killJobOnCompletion": {
           "type": "boolean",
           "title": "Whether completion of the Job Manager Task signifies completion of the entire Job.",
@@ -11826,9 +11832,9 @@
           "description": "If this property is set, the Batch service provides the Task with an authentication token which can be used to authenticate Batch service operations without requiring an Account access key. The token is provided via the AZ_BATCH_AUTHENTICATION_TOKEN environment variable. The operations that the Task can carry out using the token depend on the settings. For example, a Task can request Job permissions in order to add other Tasks to the Job, or check the status of the Job or of other Tasks under the Job.",
           "$ref": "#/definitions/AuthenticationTokenSettings"
         },
-        "allowLowPriorityNode": {
+        "allowSpotNode": {
           "type": "boolean",
-          "title": "Whether the Job Manager Task may run on a low-priority Compute Node.",
+          "title": "Whether the Job Manager Task may run on a Spot Compute Node.",
           "description": "The default value is true."
         }
       },
@@ -11950,7 +11956,7 @@
         "commandLine"
       ],
       "title": "A Job Release Task to run on Job completion on any Compute Node where the Job has run.",
-      "description": "The Job Release Task runs when the Job ends, because of one of the following: The user calls the Terminate Job API, or the Delete Job API while the Job is still active, the Job's maximum wall clock time constraint is reached, and the Job is still active, or the Job's Job Manager Task completed, and the Job is configured to terminate when the Job Manager completes. The Job Release Task runs on each Node where Tasks of the Job have run and the Job Preparation Task ran and completed. If you reimage a Node after it has run the Job Preparation Task, and the Job ends without any further Tasks of the Job running on that Node (and hence the Job Preparation Task does not re-run), then the Job Release Task does not run on that Compute Node. If a Node reboots while the Job Release Task is still running, the Job Release Task runs again when the Compute Node starts up. The Job is not marked as complete until all Job Release Tasks have completed. The Job Release Task runs in the background. It does not occupy a scheduling slot; that is, it does not count towards the maxTasksPerNode limit specified on the Pool."
+      "description": "The Job Release Task runs when the Job ends, because of one of the following: The user calls the Terminate Job API, or the Delete Job API while the Job is still active, the Job's maximum wall clock time constraint is reached, and the Job is still active, or the Job's Job Manager Task completed, and the Job is configured to terminate when the Job Manager completes. The Job Release Task runs on each Node where Tasks of the Job have run and the Job Preparation Task ran and completed. If you reimage a Node after it has run the Job Preparation Task, and the Job ends without any further Tasks of the Job running on that Node (and hence the Job Preparation Task does not re-run), then the Job Release Task does not run on that Compute Node. If a Node reboots while the Job Release Task is still running, the Job Release Task runs again when the Compute Node starts up. The Job is not marked as complete until all Job Release Tasks have completed. The Job Release Task runs in the background. It does not occupy a scheduling slot; that is, it does not count towards the taskSlotsPerNode limit specified on the Pool."
     },
     "TaskSchedulingPolicy": {
       "properties": {
@@ -11972,7 +11978,7 @@
               },
               {
                 "value": "pack",
-                "description": "As many Tasks as possible (maxTasksPerNode) should be assigned to each Compute Node in the Pool before any Tasks are assigned to the next Compute Node in the Pool."
+                "description": "As many Tasks as possible (taskSlotsPerNode) should be assigned to each Compute Node in the Pool before any Tasks are assigned to the next Compute Node in the Pool."
               }
             ]
           }
@@ -12154,11 +12160,11 @@
           "title": "The virtual machine configuration for the Pool.",
           "description": "This property must be specified if the Pool needs to be created with Azure IaaS VMs. This property and cloudServiceConfiguration are mutually exclusive and one of the properties must be specified. If neither is specified then the Batch service returns an error; if you are calling the REST API directly, the HTTP status code is 400 (Bad Request)."
         },
-        "maxTasksPerNode": {
+        "taskSlotsPerNode": {
           "type": "integer",
           "format": "int32",
-          "title": "The maximum number of Tasks that can run concurrently on a single Compute Node in the Pool.",
-          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the Pool or 256."
+          "title": "The number of task slots that can be used to run concurrent tasks on a single compute node in the pool.",
+          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the pool or 256."
         },
         "taskSchedulingPolicy": {
           "$ref": "#/definitions/TaskSchedulingPolicy",
@@ -12175,18 +12181,18 @@
           "type": "integer",
           "format": "int32",
           "title": "The desired number of dedicated Compute Nodes in the Pool.",
-          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetLowPriorityNodes, or both."
+          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetSpotNodes, or both."
         },
-        "targetLowPriorityNodes": {
+        "targetSpotNodes": {
           "type": "integer",
           "format": "int32",
-          "title": "The desired number of low-priority Compute Nodes in the Pool.",
-          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetLowPriorityNodes, or both."
+          "title": "The desired number of Spot Compute Nodes in the Pool.",
+          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetSpotNodes, or both."
         },
         "enableAutoScale": {
           "type": "boolean",
           "title": "Whether the Pool size should automatically adjust over time.",
-          "description": "If false, at least one of targetDedicateNodes and targetLowPriorityNodes must be specified. If true, the autoScaleFormula element is required. The Pool automatically resizes according to the formula. The default value is false."
+          "description": "If false, at least one of targetDedicatedNodes and targetSpotNodes must be specified. If true, the autoScaleFormula element is required. The Pool automatically resizes according to the formula. The default value is false."
         },
         "autoScaleFormula": {
           "type": "string",
@@ -12258,6 +12264,12 @@
           },
           "title": "A list of file systems to mount on each node in the pool.",
           "description": "This supports Azure Files, NFS, CIFS/SMB, and Blobfuse."
+        },
+        "maxSpotPrice": {
+          "type": "number",
+          "format": "double",
+          "title": "The maximum price you are willing to pay per hour for a Spot VM, expressed in US dollars",
+          "description": "This price gets compared against the current Azure Spot price for the Pool's VM size. If the Azure Spot price is higher than the maxSpotPrice, then existing Spot VMs in the Pool will be evicted and new Spot VMs will fail to allocate. There is a special value of -1 which ensures that Spot VMs will never be preempted for price reasons and that Spot VMs will always be billed at the current on-demand price. Applicable only for VirtualMachineConfiguration pools. Default value is -1 if not provided."
         }
       },
       "required": [
@@ -13187,6 +13199,23 @@
       },
       "title": "The result of listing the status of the Job Preparation and Job Release Tasks for a Job."
     },
+    "TaskCountsResult": {
+      "properties": {
+        "taskCounts": {
+          "$ref": "#/definitions/TaskCounts",
+          "title": "The number of Tasks per state."
+        },
+        "taskSlotCounts": {
+          "$ref": "#/definitions/TaskSlotCounts",
+          "title": "The number of TaskSlots required by Tasks per state."
+        }
+      },
+      "required": [
+        "taskCounts",
+        "taskSlotCounts"
+      ],
+      "title": "The Task and TaskSlot counts for a Job."
+    },
     "TaskCounts": {
       "properties": {
         "active": {
@@ -13223,6 +13252,43 @@
         "failed"
       ],
       "title": "The Task counts for a Job."
+    },
+    "TaskSlotCounts": {
+      "properties": {
+        "active": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of TaskSlots for active Tasks."
+        },
+        "running": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of TaskSlots for running Tasks."
+        },
+        "completed": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of TaskSlots for completed Tasks."
+        },
+        "succeeded": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of TaskSlots for succeeded Tasks."
+        },
+        "failed": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of TaskSlots for failed Tasks."
+        }
+      },
+      "required": [
+        "active",
+        "running",
+        "completed",
+        "succeeded",
+        "failed"
+      ],
+      "title": "The TaskSlot counts for a Job."
     },
     "AutoScaleRunError": {
       "properties": {
@@ -13328,11 +13394,11 @@
         },
         "virtualMachineImageId": {
           "type": "string",
-          "title": "The ARM resource identifier of the Shared Image Gallery Image. Compute Nodes in the Pool will be created using this Image Id. This is of the form/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Compute/galleries/{galleryName}/images/{imageDefinitionName}/versions/{versionId}.",
-          "description": "This property is mutually exclusive with other ImageReference properties. For Virtual Machine Image it must be in the same region and subscription as the Azure Batch account. The Shared Image Gallery Image must have replicas in the same region as the Azure Batch account. For information about the firewall settings for the Batch Compute Node agent to communicate with the Batch service see https://docs.microsoft.com/en-us/azure/batch/batch-api-basics#virtual-network-vnet-and-firewall-configuration."
+          "title": "The ARM resource identifier of the Shared Image Gallery Image. Compute Nodes in the Pool will be created using this Image Id. This is of the form /subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Compute/galleries/{galleryName}/images/{imageDefinitionName}/versions/{VersionId} or /subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Compute/galleries/{galleryName}/images/{imageDefinitionName} for always defaulting to the latest image version.",
+          "description": "This property is mutually exclusive with other ImageReference properties. The Shared Image Gallery Image must have replicas in the same region and must be in the same subscription as the Azure Batch account. If the image version is not specified in the imageId, the latest version will be used. For information about the firewall settings for the Batch Compute Node agent to communicate with the Batch service see https://docs.microsoft.com/en-us/azure/batch/batch-api-basics#virtual-network-vnet-and-firewall-configuration."
         }
       },
-      "title": "A reference to an Azure Virtual Machines Marketplace Image or a custom Azure Virtual Machine Image. To get the list of all Azure Marketplace Image references verified by Azure Batch, see the 'List supported Images' operation."
+      "title": "A reference to an Azure Virtual Machines Marketplace Image or a bring-your-own Shared Image Gallery Image. To get the list of all Azure Marketplace Image references verified by Azure Batch, see the 'List Supported Images' operation."
     },
     "WindowsConfiguration": {
       "properties": {
@@ -13350,7 +13416,7 @@
           "type": "integer",
           "format": "int32",
           "title": "The logical unit number.",
-          "description": "The lun is used to uniquely identify each data disk. If attaching multiple disks, each should have a distinct lun."
+          "description": "The lun is used to uniquely identify each data disk. If attaching multiple disks, each should have a distinct lun. The value must be between 0 and 63, inclusive."
         },
         "caching": {
           "$ref": "#/definitions/CachingType",
@@ -13545,7 +13611,8 @@
           "items": {
             "type": "string",
             "x-nullable": false,
-            "title": "A disk to encrypt.",
+            "title": "The disks to encrypt on each compute node.",
+            "description": "If omitted, OsDisk is encrypted using platform managed key by default.",
             "enum": [
               "osdisk",
               "temporarydisk"
@@ -13561,14 +13628,14 @@
                 },
                 {
                   "value": "temporarydisk",
-                  "description": "The temporary disk on the compute node is encrypted. On Linux this encryption applies to other partitions (such as those on mounted data disks) when encryption occurs at boot time.",
+                  "description": "The temporary disk on the compute node is encrypted.",
                   "name": "TemporaryDisk"
                 }
               ]
             }
           },
           "title": "The list of disk targets Batch Service will encrypt on the compute node.",
-          "description": "If omitted, no disks on the compute nodes in the pool will be encrypted. On Linux pool, only \"TemporaryDisk\" is supported; on Windows pool, \"OsDisk\" and \"TemporaryDisk\" must be specified."
+          "description": "The target disks specified will be encrypted using a platform managed key."
         }
       },
       "description": "The disk encryption configuration applied on compute nodes in the pool. Disk encryption configuration is not supported on Linux pool created with Shared Image Gallery Image."
@@ -13616,7 +13683,7 @@
             "type": "string"
           },
           "title": "The list of public IPs which the Batch service will use when provisioning Compute Nodes.",
-          "description": "The number of IPs specified here limits the maximum size of the Pool - 50 dedicated nodes or 20 low-priority nodes can be allocated for each public IP. For example, a pool needing 150 dedicated VMs would need at least 3 public IPs specified. Each element of this collection is of the form: /subscriptions/{subscription}/resourceGroups/{group}/providers/Microsoft.Network/publicIPAddresses/{ip}."
+          "description": "The number of IPs specified here limits the maximum size of the Pool - 100 dedicated nodes or 100 low-priority nodes can be allocated for each public IP. For example, a pool needing 250 dedicated VMs would need at least 3 public IPs specified. Each element of this collection is of the form: /subscriptions/{subscription}/resourceGroups/{group}/providers/Microsoft.Network/publicIPAddresses/{ip}."
         }
       },
       "description": "The public IP Address configuration of the networking configuration of a Pool."
@@ -13792,26 +13859,26 @@
           "format": "int32",
           "title": "The number of dedicated Compute Nodes currently in the Pool."
         },
-        "currentLowPriorityNodes": {
+        "currentSpotNodes": {
           "type": "integer",
           "format": "int32",
-          "title": "The number of low-priority Compute Nodes currently in the Pool.",
-          "description": "Low-priority Compute Nodes which have been preempted are included in this count."
+          "title": "The number of Spot Compute Nodes currently in the Pool.",
+          "description": "Spot Compute Nodes which have been preempted are included in this count."
         },
         "targetDedicatedNodes": {
           "type": "integer",
           "format": "int32",
           "title": "The desired number of dedicated Compute Nodes in the Pool."
         },
-        "targetLowPriorityNodes": {
+        "targetSpotNodes": {
           "type": "integer",
           "format": "int32",
-          "title": "The desired number of low-priority Compute Nodes in the Pool."
+          "title": "The desired number of Spot Compute Nodes in the Pool."
         },
         "enableAutoScale": {
           "type": "boolean",
           "title": "Whether the Pool size should automatically adjust over time.",
-          "description": "If false, at least one of targetDedicateNodes and targetLowPriorityNodes must be specified. If true, the autoScaleFormula property is required and the Pool automatically resizes according to the formula. The default value is false."
+          "description": "If false, at least one of targetDedicatedNodes and targetSpotNodes must be specified. If true, the autoScaleFormula property is required and the Pool automatically resizes according to the formula. The default value is false."
         },
         "autoScaleFormula": {
           "type": "string",
@@ -13866,11 +13933,11 @@
           "title": "The list of application licenses the Batch service will make available on each Compute Node in the Pool.",
           "description": "The list of application licenses must be a subset of available Batch service application licenses. If a license is requested which is not supported, Pool creation will fail."
         },
-        "maxTasksPerNode": {
+        "taskSlotsPerNode": {
           "type": "integer",
           "format": "int32",
-          "title": "The maximum number of Tasks that can run concurrently on a single Compute Node in the Pool.",
-          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the Pool or 256."
+          "title": "The number of task slots that can be used to run concurrent tasks on a single compute node in the pool.",
+          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the pool or 256."
         },
         "taskSchedulingPolicy": {
           "$ref": "#/definitions/TaskSchedulingPolicy",
@@ -13903,6 +13970,12 @@
           },
           "title": "A list of file systems to mount on each node in the pool.",
           "description": "This supports Azure Files, NFS, CIFS/SMB, and Blobfuse."
+        },
+        "maxSpotPrice": {
+          "type": "number",
+          "format": "double",
+          "title": "The maximum price you are willing to pay per hour for a Spot VM, expressed in US dollars",
+          "description": "This price gets compared against the current Azure Spot price for the Pool's VM size. If the Azure Spot price is higher than the maxSpotPrice, then existing Spot VMs in the Pool will be evicted and new Spot VMs will fail to allocate. There is a special value of -1 which ensures that Spot VMs will never be preempted for price reasons and that the on-demand price will always apply. Applicable only for VirtualMachineConfiguration pools. Default value is -1 if not provided."
         }
       },
       "title": "A Pool in the Azure Batch service."
@@ -13944,18 +14017,18 @@
           "type": "integer",
           "format": "int32",
           "title": "The desired number of dedicated Compute Nodes in the Pool.",
-          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetLowPriorityNodes, or both."
+          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetSpotNodes, or both."
         },
-        "targetLowPriorityNodes": {
+        "targetSpotNodes": {
           "type": "integer",
           "format": "int32",
-          "title": "The desired number of low-priority Compute Nodes in the Pool.",
-          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetLowPriorityNodes, or both."
+          "title": "The desired number of Spot Compute Nodes in the Pool.",
+          "description": "This property must not be specified if enableAutoScale is set to true. If enableAutoScale is set to false, then you must set either targetDedicatedNodes, targetSpotNodes, or both."
         },
         "enableAutoScale": {
           "type": "boolean",
           "title": "Whether the Pool size should automatically adjust over time.",
-          "description": "If false, at least one of targetDedicateNodes and targetLowPriorityNodes must be specified. If true, the autoScaleFormula property is required and the Pool automatically resizes according to the formula. The default value is false."
+          "description": "If false, at least one of targetDedicatedNodes and targetSpotNodes must be specified. If true, the autoScaleFormula property is required and the Pool automatically resizes according to the formula. The default value is false."
         },
         "autoScaleFormula": {
           "type": "string",
@@ -14006,11 +14079,11 @@
           "title": "The list of application licenses the Batch service will make available on each Compute Node in the Pool.",
           "description": "The list of application licenses must be a subset of available Batch service application licenses. If a license is requested which is not supported, Pool creation will fail."
         },
-        "maxTasksPerNode": {
+        "taskSlotsPerNode": {
           "type": "integer",
           "format": "int32",
-          "title": "The maximum number of Tasks that can run concurrently on a single Compute Node in the Pool.",
-          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the Pool or 256."
+          "title": "The number of task slots that can be used to run concurrent tasks on a single compute node in the pool.",
+          "description": "The default value is 1. The maximum value is the smaller of 4 times the number of cores of the vmSize of the pool or 256."
         },
         "taskSchedulingPolicy": {
           "$ref": "#/definitions/TaskSchedulingPolicy",
@@ -14039,6 +14112,12 @@
           },
           "title": "Mount storage using specified file system for the entire lifetime of the pool.",
           "description": "Mount the storage using Azure fileshare, NFS, CIFS or Blobfuse based file system."
+        },
+        "maxSpotPrice": {
+          "type": "number",
+          "format": "double",
+          "title": "The maximum price you are willing to pay per hour for a Spot VM, expressed in US dollars",
+          "description": "This price gets compared against the current Azure Spot price for the Pool's VM size. If the Azure Spot price is higher than the maxSpotPrice, then existing Spot VMs in the Pool will be evicted and new Spot VMs will fail to allocate. There is a special value of -1 which ensures that Spot VMs will never be preempted for price reasons and that the on-demand price will always apply. Applicable only for VirtualMachineConfiguration pools. Default value is -1 if not provided."
         }
       },
       "required": [
@@ -14445,6 +14524,12 @@
           "$ref": "#/definitions/TaskConstraints",
           "title": "The execution constraints that apply to this Task."
         },
+        "requiredSlots": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of scheduling slots that the Task required to run.",
+          "description": "The default is 1. A Task can only be scheduled to run on a compute node if the node has enough free scheduling slots available. For multi-instance Tasks, this must be 1."
+        },
         "userIdentity": {
           "$ref": "#/definitions/UserIdentity",
           "title": "The user identity under which the Task runs.",
@@ -14545,6 +14630,12 @@
           "$ref": "#/definitions/TaskConstraints",
           "title": "The execution constraints that apply to this Task.",
           "description": "If you do not specify constraints, the maxTaskRetryCount is the maxTaskRetryCount specified for the Job, the maxWallClockTime is infinite, and the retentionTime is 7 days."
+        },
+        "requiredSlots": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The number of scheduling slots that the Task required to run.",
+          "description": "The default is 1. A Task can only be scheduled to run on a compute node if the node has enough free scheduling slots available. For multi-instance Tasks, this must be 1."
         },
         "userIdentity": {
           "$ref": "#/definitions/UserIdentity",
@@ -15050,6 +15141,11 @@
           "format": "int32",
           "title": "The total number of currently running Job Tasks on the Compute Node. This includes Job Manager Tasks and normal Tasks, but not Job Preparation, Job Release or Start Tasks."
         },
+        "runningTaskSlotsCount": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The total number of scheduling slots used by currently running Job Tasks on the Compute Node. This includes Job Manager Tasks and normal Tasks, but not Job Preparation, Job Release or Start Tasks."
+        },
         "totalTasksSucceeded": {
           "type": "integer",
           "format": "int32",
@@ -15109,7 +15205,7 @@
             "$ref": "#/definitions/InboundNATPool"
           },
           "title": "A list of inbound NAT Pools that can be used to address specific ports on an individual Compute Node externally.",
-          "description": "The maximum number of inbound NAT Pools per Batch Pool is 5. If the maximum number of inbound NAT Pools is exceeded the request fails with HTTP status code 400."
+          "description": "The maximum number of inbound NAT Pools per Batch Pool is 5. If the maximum number of inbound NAT Pools is exceeded the request fails with HTTP status code 400. This cannot be specified if the IPAddressProvisioningType is NoPublicIPAddresses."
         }
       },
       "required": [
@@ -15537,10 +15633,10 @@
           "format": "int32",
           "title": "The desired number of dedicated Compute Nodes in the Pool."
         },
-        "targetLowPriorityNodes": {
+        "targetSpotNodes": {
           "type": "integer",
           "format": "int32",
-          "title": "The desired number of low-priority Compute Nodes in the Pool."
+          "title": "The desired number of Spot Compute Nodes in the Pool."
         },
         "resizeTimeout": {
           "type": "string",
@@ -16361,9 +16457,9 @@
           "$ref": "#/definitions/NodeCounts",
           "title": "The number of dedicated Compute Nodes in each state."
         },
-        "lowPriority": {
+        "spot": {
           "$ref": "#/definitions/NodeCounts",
-          "title": "The number of low priority Compute Nodes in each state."
+          "title": "The number of spot Compute Nodes in each state."
         }
       },
       "required": [
@@ -16615,7 +16711,7 @@
       ],
       "title": "Information used to connect to an Azure Fileshare."
     }
-  },
+    },
   "parameters": {
     "ApiVersionParameter": {
       "name": "api-version",
